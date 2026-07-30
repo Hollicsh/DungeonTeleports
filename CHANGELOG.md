@@ -1,13 +1,13 @@
-## 🧩 Addon Updates (2026-06-01)
+## 🧩 Addon Updates (2026-07-30)
 
-**Mythic Dungeon Teleports** — v2.1.6  
+**Mythic Dungeon Teleports** — v2.1.7  
 
 **Changes:**  
-- Updated Keystone Module to display realm next to player name. This is to prevent confusion with the same character name over different servers
-- Keystone Module is now fully localised in all languages available in Mythic Dungeon Teleports
+- Updated for patch 12.1
+- Included new portals for Midnight Season 2  
 
 **Fixes:**  
-- Update various translations for reported bug #25
+- None currently known  
 
 **Known issues:**  
 - None currently known  

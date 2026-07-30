@@ -217,7 +217,7 @@ addon.constants_12 = {
 -- =========================================================
 do
   local _, _, _, tocVersion = GetBuildInfo()
-  if tocVersion and tocVersion >= 120000 and addon.constants_12 then
+  if tocVersion and tocVersion >= 120100 and addon.constants_12 then
     addon.constants = addon.constants_12
   else
     addon.constants = addon.constants_legacy or addon.constants_12

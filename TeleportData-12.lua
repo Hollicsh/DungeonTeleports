@@ -5,20 +5,18 @@ local L = addon.L or {}
 local mapExpansionToBackground = {}
 
 local mapExpansionToMapID = {
-    -- Season 1 TWW
-    [L["Current Season"]] = {901, 902, 903, 904, 704, 001, 407, 305},
+    [L["Current Season"]] = {905, 906, 907, 908, 909, 701, 508, 509},
     [L["Wotlk"]] =  {001},
     [L["Cataclysm"]] = {101, 102, 103},
     [L["Mists of Pandaria"]] = {201, 202, 203, 204, 205, 206, 207, 208, 209},
     [L["Warlords of Draenor"]] = {301, 302, 303, 304, 305, 306, 307, 308},
     [L["Legion"]] = {401, 402, 403, 404, 405, 406},
-    [L["Battle for Azeroth"]] = {501, 502, 503, 504, 505, 506, 507},
+    [L["Battle for Azeroth"]] = {501, 502, 503, 504, 505, 506, 507, 508, 509},
     [L["Shadowlands"]] = {601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 612},
     [L["Dragonflight"]] = {701, 702, 703, 704, 705, 706, 707, 708, 709, 710, 711, 712},
     [L["The War Within"]] = {801, 802, 803, 804, 805, 806, 807, 808, 809, 810, 811, 812},
-    [L["Midnight"]] = {901, 902, 903, 904, 905, 906, 907, 908},
+    [L["Midnight"]] = {901, 902, 903, 904, 905, 906, 907, 908, 909},
 }
-
 
 -- Map IDs to Dungeon Names
 local mapIDtoDungeonName = {
@@ -57,6 +55,8 @@ local mapIDtoDungeonName = {
     [505] = L["DUNGEON_MECHAGON"],
     [506] = L["DUNGEON_SEIGE_OF_BORALUS"],
     [507] = L["DUNGEON_THE_MOTHERLODE"],
+    [508] = L["DUNGEON_TEMPLE_SETHRALISS"],
+    [509] = L["DUNGEON_KINGS_REST"],
     [601] = L["DUNGEON_THE_NECROTIC_WAKE"],
     [602] = L["DUNGEON_PLAGUEFALL"],
     [603] = L["DUNGEON_MISTS_OF_TIRNA_SCITHE"],
@@ -97,7 +97,11 @@ local mapIDtoDungeonName = {
     [902] = L["DUNGEON_MAISARA_CAVERNS"],
     [903] = L["DUNGEON_NEXUS_POINT"],
     [904] = L["DUNGEON_WINDRUNNER_SPIRE"],
-
+    [905] = L["DUNGEON_ALTAR_FANGS"],
+    [906] = L["DUNGEON_DEN_NALORAKK"],
+    [907] = L["DUNGEON_BLINDING_VALE"],
+    [908] = L["DUNGEON_VOIDSCAR_ARENA"],
+    [909] = L["DUNGEON_MURDER_ROW"],
 }
 
 -- Mapping Map IDs to Teleport Spells
@@ -137,6 +141,8 @@ local mapIDtoSpellID = {
     [505] = 373274, -- Operation: Mechagon
     [506] = 0,      -- Siege of Boralus (faction-specific, 0 is a placeholder for the real SpellID)
     [507] = 0, -- The Motherlode (Path of the Azerite Refinery)
+    [508] = 1286828, -- Temple of Sethraliss
+    [509] = 1286831, -- King's Rest
     [601] = 354462, -- The Necrotic Wake
     [602] = 354463, -- Plaguefall
     [603] = 354464, -- Mists of Tirna Scithe
@@ -177,7 +183,11 @@ local mapIDtoSpellID = {
     [902] = 1254559, -- Maisara Caverns
     [903] = 1254563, -- Nexus Point Xenas
     [904] = 1254400, -- Windrunner Spire
-
+    [905] = 1286812, -- Altar of Fangs
+    [906] = 1286807, -- Den of Nalorakk
+    [907] = 1286801, -- Blinding Vale
+    [908] = 1286804, -- Voidscar Arena
+    [909] = 1286809, -- Murder Row
 }
 
 -- Export the constants

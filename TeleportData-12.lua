@@ -5,6 +5,7 @@ local L = addon.L or {}
 local mapExpansionToBackground = {}
 
 local mapExpansionToMapID = {
+    -- Season 2 Midnight
     [L["Current Season"]] = {905, 906, 907, 908, 909, 701, 508, 509},
     [L["Wotlk"]] =  {001},
     [L["Cataclysm"]] = {101, 102, 103},

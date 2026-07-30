@@ -5,8 +5,9 @@ local L = addon.L or {}
 local mapExpansionToBackground = {}
 
 local mapExpansionToMapID = {
-    -- Season 1 TWW
-    [L["Current Season"]] = {802, 804, 808, 809, 811, 604, 609, 812},
+    -- Season 1 Midnight
+    [L["Current Season"]] = {901, 902, 903, 904, 704, 001, 407, 305},
+    [L["Wotlk"]] =  {001},
     [L["Cataclysm"]] = {101, 102, 103},
     [L["Mists of Pandaria"]] = {201, 202, 203, 204, 205, 206, 207, 208, 209},
     [L["Warlords of Draenor"]] = {301, 302, 303, 304, 305, 306, 307, 308},
@@ -15,11 +16,13 @@ local mapExpansionToMapID = {
     [L["Shadowlands"]] = {601, 602, 603, 604, 605, 606, 607, 608, 609, 610, 611, 612},
     [L["Dragonflight"]] = {701, 702, 703, 704, 705, 706, 707, 708, 709, 710, 711, 712},
     [L["The War Within"]] = {801, 802, 803, 804, 805, 806, 807, 808, 809, 810, 811, 812},
+    [L["Midnight"]] = {901, 902, 903, 904, 905, 906, 907, 908},
 }
 
 
 -- Map IDs to Dungeon Names
 local mapIDtoDungeonName = {
+    [001] = L["DUNGEON_PIT_SARON"],
     [101] = L["DUNGEON_VORTEX_PINNACLE"],
     [102] = L["DUNGEON_THRONE_OF_THE_TIDES"],
     [103] = L["DUNGEON_GRIM_BATOL"],
@@ -46,6 +49,7 @@ local mapIDtoDungeonName = {
     [404] = L["DUNGEON_NELTHARIONS_LAIR"],
     [405] = L["DUNGEON_COURT_OF_STARS"],
     [406] = L["DUNGEON_KARAZHAN"],
+    [407] = L["DUNGEON_SEAT_TRIUMVIRATE"],
     [501] = L["DUNGEON_ATALDAZAR"],
     [502] = L["DUNGEON_FREEHOLD"],
     [503] = L["DUNGEON_WAYCREST_MANOR"],
@@ -89,11 +93,16 @@ local mapIDtoDungeonName = {
     [810] = L["RAID_LIBERATION_UNDERMINE"],
     [811] = L["DUNGEON_ECHO_DOME"],
     [812] = L["RAID_MANAFORGE_OMEGA"],
+    [901] = L["DUNGEON_MAGISTERS_TERRACE"],
+    [902] = L["DUNGEON_MAISARA_CAVERNS"],
+    [903] = L["DUNGEON_NEXUS_POINT"],
+    [904] = L["DUNGEON_WINDRUNNER_SPIRE"],
 
 }
 
 -- Mapping Map IDs to Teleport Spells
 local mapIDtoSpellID = {
+    [001] = 1254555, -- Pit of Saron
     [101] = 410080, -- The Vortex Pinnacle
     [102] = 424142, -- Throne of the Tide
     [103] = 445424, -- Grim Batol
@@ -120,6 +129,7 @@ local mapIDtoSpellID = {
     [404] = 410078, -- Neltharions Lair
     [405] = 393766, -- Court of Starts
     [406] = 373262, -- Karazhan
+    [407] = 1254551, -- Seat of the Triumvirate
     [501] = 424187, -- Atal'Dazar
     [502] = 410071, -- Freehold
     [503] = 424167, -- Waycrest
@@ -163,6 +173,10 @@ local mapIDtoSpellID = {
     [810] = 1226482, -- Liberation of Undermine
     [811] = 1237215, -- Eco-Dome, Al'dani 
     [812] = 1239155, -- Manaforge Omega
+    [901] = 1254572, -- Magisters' Terrace
+    [902] = 1254559, -- Maisara Caverns
+    [903] = 1254563, -- Nexus Point Xenas
+    [904] = 1254400, -- Windrunner Spire
 
 }
 
@@ -174,6 +188,7 @@ addon.constants_legacy = {
     mapExpansionToBackground = mapExpansionToBackground,
     orderedExpansions = {
     L["Current Season"],
+    L["Wotlk"],
     L["Cataclysm"],
     L["Mists of Pandaria"],
     L["Warlords of Draenor"], 
@@ -181,7 +196,20 @@ addon.constants_legacy = {
     L["Battle for Azeroth"],
     L["Shadowlands"],
     L["Dragonflight"],
-    L["The War Within"]
+    L["The War Within"],
+    L["Midnight"]
 }
 
 }
+
+-- =========================================================
+-- Data selection: use 12.x dataset when running 12.0.0+
+-- =========================================================
+do
+  local _, _, _, tocVersion = GetBuildInfo()
+  if tocVersion and tocVersion >= 120100 and addon.constants_12 then
+    addon.constants = addon.constants_12
+  else
+    addon.constants = addon.constants_legacy or addon.constants_12
+  end
+end

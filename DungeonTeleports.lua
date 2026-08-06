@@ -639,7 +639,7 @@ mainFrame.scrollFrame:SetScrollChild(mainFrame.scrollChild)
 -- Keystone view
 -- =========================================================
 local KEYSTONE_PREFIX = "DTKEYSTONE"
-local KEYSTONE_CACHE_TTL_SECONDS = 3 * 24 * 60 * 60
+local KEYSTONE_CACHE_TTL_SECONDS = 8 * 24 * 60 * 60
 local keystoneRows = {}
 local lastKeystoneBroadcast = 0
 local keystoneRefreshTicker = nil

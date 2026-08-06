@@ -3,7 +3,7 @@
 **Mythic Dungeon Teleports** — v2.1.9  
 
 **Changes:**  
-- Keystone cache data older than three days is now cleaned up automatically  
+- Keystone cache data older than eight days is now cleaned up automatically  
 
 **Fixes:**  
 - None  

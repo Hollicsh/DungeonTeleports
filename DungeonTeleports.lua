@@ -397,9 +397,9 @@ if classColor then
   COLORS.border = {COLORS.accent[1], COLORS.accent[2], COLORS.accent[3], 0.95}
   COLORS.borderSoft = {COLORS.accent[1], COLORS.accent[2], COLORS.accent[3], 0.35}
   COLORS.accentDark = {
-    math.max(0, (classColor.r or 0.78) * 0.45),
-    math.max(0, (classColor.g or 0.61) * 0.45),
-    math.max(0, (classColor.b or 0.43) * 0.45),
+    math.max(0, (classColor.r or 0.78) * 0.70),
+    math.max(0, (classColor.g or 0.61) * 0.70),
+    math.max(0, (classColor.b or 0.43) * 0.70),
     1,
   }
   COLORS.hover = {

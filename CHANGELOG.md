@@ -1,13 +1,12 @@
 ## 🧩 Addon Updates (2026-08-06)
 
-**Mythic Dungeon Teleports** — v2.1.8  
+**Mythic Dungeon Teleports** — v2.1.9  
 
 **Changes:**  
-- None  
+- Keystone cache data older than three days is now cleaned up automatically  
 
 **Fixes:**  
-- Group Reminder popup could silently fail to appear after being accepted into a group, if the Premade Groups panel had already been closed (or the search list refreshed) by the time the invite went through  
-- Fixed a file-path casing mismatch in the addon manifest that could prevent libraries from loading on case-sensitive systems  
+- None  
 
 **Known issues:**  
 - None currently known  

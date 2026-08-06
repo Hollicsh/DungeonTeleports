@@ -639,6 +639,7 @@ mainFrame.scrollFrame:SetScrollChild(mainFrame.scrollChild)
 -- Keystone view
 -- =========================================================
 local KEYSTONE_PREFIX = "DTKEYSTONE"
+local KEYSTONE_CACHE_TTL_SECONDS = 3 * 24 * 60 * 60
 local keystoneRows = {}
 local lastKeystoneBroadcast = 0
 local keystoneRefreshTicker = nil
@@ -745,6 +746,23 @@ local function EnsureKeystoneDB()
   return DungeonTeleportsDB.keystones
 end
 
+local function PruneStaleKeystoneCache()
+  local db = EnsureKeystoneDB()
+  local cutoff = time() - KEYSTONE_CACHE_TTL_SECONDS
+
+  local function pruneScope(scope)
+    for fullName, record in pairs(scope or {}) do
+      local updated = type(record) == "table" and tonumber(record.updated) or nil
+      if not updated or updated < cutoff then
+        scope[fullName] = nil
+      end
+    end
+  end
+
+  pruneScope(db.characters)
+  pruneScope(db.party)
+  pruneScope(db.guild)
+end
 
 local function GetGroupFullNames()
   local group = {}
@@ -1066,6 +1084,7 @@ local function CreateKeystoneRefreshButton()
     UpdateOwnKeystoneCache()
     ImportAstralKeysCache()
     RequestLibKeystones(true)
+    PruneStaleKeystoneCache()
     PrunePartyKeystoneCache()
     BroadcastOwnKeystone(true)
     if addon.ShowKeystoneView then addon.ShowKeystoneView() end
@@ -1092,6 +1111,7 @@ local function StartKeystoneAutoRefresh()
     UpdateOwnKeystoneCache()
     ImportAstralKeysCache()
     RequestLibKeystones(false)
+    PruneStaleKeystoneCache()
     PrunePartyKeystoneCache()
     BroadcastOwnKeystone(false)
     if addon.ShowKeystoneView then addon.ShowKeystoneView() end
@@ -1343,6 +1363,7 @@ function addon.ShowKeystoneView()
     UpdateOwnKeystoneCache()
     ImportAstralKeysCache()
     RequestLibKeystones(false)
+    PruneStaleKeystoneCache()
     PrunePartyKeystoneCache()
     BroadcastOwnKeystone(false)
   end
@@ -1804,6 +1825,7 @@ DungeonTeleports:SetScript("OnEvent", function(_, event, prefix, msg, channel, s
     return
   elseif event == "BAG_UPDATE_DELAYED" or event == "GROUP_ROSTER_UPDATE" then
     UpdateOwnKeystoneCache()
+    PruneStaleKeystoneCache()
     if event == "GROUP_ROSTER_UPDATE" then
       PrunePartyKeystoneCache()
       RequestLibKeystones(true)
@@ -1831,6 +1853,7 @@ DungeonTeleports:SetScript("OnEvent", function(_, event, prefix, msg, channel, s
   UpdateOwnKeystoneCache()
   ImportAstralKeysCache()
   RequestLibKeystones(true)
+  PruneStaleKeystoneCache()
   DungeonTeleportsDB.defaultExpansion = DungeonTeleportsDB.defaultExpansion or L["Current Season"]
   DungeonTeleportsDB.selectedExpansion = DungeonTeleportsDB.selectedExpansion or DungeonTeleportsDB.defaultExpansion
   DungeonTeleportsDB.uiScale = ClampScale(DungeonTeleportsDB.uiScale)

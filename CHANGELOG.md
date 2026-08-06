@@ -1,6 +1,6 @@
 ## 🧩 Addon Updates (2026-08-06)
 
-**Mythic Dungeon Teleports** — v2.1.9   
+**Mythic Dungeon Teleports** — v2.1.10   
 
 **Changes:**  
 - Keystone cache data older than eight days is now cleaned up automatically  

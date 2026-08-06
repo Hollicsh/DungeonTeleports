@@ -545,6 +545,13 @@ function addon:DT_GR_UpdateRegistration()
 
   addon._DT_GR_pendingInvite = addon._DT_GR_pendingInvite or nil
   addon._DT_GR_lastShownAt = addon._DT_GR_lastShownAt or 0
+  -- Snapshot of {activityID, srd} per searchResultID, captured the first time
+  -- C_LFGList.GetSearchResultInfo() succeeds for it. Blizzard purges search
+  -- results from this API once the Premade Groups panel is closed / the list
+  -- refreshes, so if the player is accepted *after* that happens, a fresh
+  -- lookup at accept-time returns nil even though the application is real.
+  -- Falling back to this snapshot keeps the reminder working in that case.
+  addon._DT_GR_appCache = addon._DT_GR_appCache or {}
 
   local function DT_GR_CanShowAgain()
     local now = GetTime and GetTime() or 0
@@ -560,6 +567,9 @@ function addon:DT_GR_UpdateRegistration()
     if addon._DT_GR_roleByResult and searchResultID then
       addon._DT_GR_roleByResult[searchResultID] = nil
     end
+    if addon._DT_GR_appCache and searchResultID then
+      addon._DT_GR_appCache[searchResultID] = nil
+    end
   end
 
   if not self._DT_GR_frame then
@@ -568,6 +578,7 @@ function addon:DT_GR_UpdateRegistration()
       if event == "GROUP_LEFT" then
         addon._DT_GR_lastReminder = nil
         addon._DT_GR_pendingInvite = nil
+        addon._DT_GR_appCache = {}
         if DungeonTeleportsDB and DungeonTeleportsDB.groupReminder then
           DungeonTeleportsDB.groupReminder.lastReminder = nil
         end
@@ -579,10 +590,23 @@ function addon:DT_GR_UpdateRegistration()
         if not searchResultID or not newStatus then return end
 
         local srd = C_LFGList.GetSearchResultInfo and C_LFGList.GetSearchResultInfo(searchResultID)
-        if not srd then return end
+        local activityID = srd and ((srd.activityIDs and srd.activityIDs[1]) or srd.activityID)
 
-        local activityID = (srd.activityIDs and srd.activityIDs[1]) or srd.activityID
-        if not activityID or not IsMythicPlusActivity(activityID) then return end
+        if srd and activityID then
+          -- Live data available - cache it while it's good, in case it's
+          -- gone by the time the "accepted" status/GROUP_JOINED arrives.
+          addon._DT_GR_appCache[searchResultID] = { srd = srd, activityID = activityID }
+        else
+          -- Live lookup failed (panel closed, list refreshed, etc). Fall
+          -- back to whatever we captured earlier for this application.
+          local cached = addon._DT_GR_appCache[searchResultID]
+          if cached then
+            srd = srd or cached.srd
+            activityID = activityID or cached.activityID
+          end
+        end
+
+        if not srd or not activityID or not IsMythicPlusActivity(activityID) then return end
 
         local activity = C_LFGList.GetActivityInfoTable and C_LFGList.GetActivityInfoTable(activityID)
         if not activity then return end

@@ -1,13 +1,13 @@
-## 🧩 Addon Updates (2026-07-30)
+## 🧩 Addon Updates (2026-08-06)
 
-**Mythic Dungeon Teleports** — v2.1.7  
+**Mythic Dungeon Teleports** — v2.1.8  
 
 **Changes:**  
-- Updated for patch 12.1
-- Included new portals for Midnight Season 2  
+- None  
 
 **Fixes:**  
-- None currently known  
+- Group Reminder popup could silently fail to appear after being accepted into a group, if the Premade Groups panel had already been closed (or the search list refreshed) by the time the invite went through  
+- Fixed a file-path casing mismatch in the addon manifest that could prevent libraries from loading on case-sensitive systems  
 
 **Known issues:**  
 - None currently known  

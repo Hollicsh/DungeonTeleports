@@ -3,7 +3,7 @@
 ## Notes: Adds teleport buttons for M+ Dungeons & Raids
 ## Notes-ruRU: Добавляет кнопки телепортации для M+ подземелий и рейдов
 ## Author: Lanni-Alonsus
-## Version: 2.1.7
+## Version: 2.1.8
 
 ## X-Curse-Project-ID: 1194926
 ## X-Wago-ID: BNBeblGx
@@ -27,12 +27,12 @@
 ## Category-zhCN: 地下城和团队副本
 ## Category-zhTW: 地城與團隊
 
-libs\LibStub\LibStub.lua
-libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
-libs\WagoAnalytics\Shim.lua
-libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
-libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
-libs\LibKeystone\LibKeystone.lua
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\WagoAnalytics\Shim.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+Libs\LibDBIcon-1.0\LibDBIcon-1.0.lua
+Libs\LibKeystone\LibKeystone.lua
 
 # Localisation Files
 Locales/Locales.lua

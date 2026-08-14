@@ -14,10 +14,27 @@ local function AnalyticsEvent(name, data)
 end
 
 function addon.ForceRefreshUI()
-  if DungeonTeleportsMainFrame and DungeonTeleportsMainFrame:IsShown() and addon.RefreshTeleportUI then
-    local selectedExpansion = DungeonTeleportsDB.selectedExpansion or DungeonTeleportsDB.defaultExpansion or addon.constants.orderedExpansions[1]
-    addon.RefreshTeleportUI(selectedExpansion)
+  if not (DungeonTeleportsMainFrame and DungeonTeleportsMainFrame:IsShown() and addon.RefreshTeleportUI) then
+    return
   end
+
+  -- RefreshTeleportUI rebuilds secure teleport buttons, which WoW disallows during
+  -- combat lockdown (e.g. resetting settings to default while the window is open
+  -- and you're in combat). Defer until combat ends instead of erroring.
+  if InCombatLockdown and InCombatLockdown() then
+    local waiter = CreateFrame("Frame")
+    waiter:RegisterEvent("PLAYER_REGEN_ENABLED")
+    waiter:SetScript("OnEvent", function(self)
+      self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+      if DungeonTeleportsMainFrame and DungeonTeleportsMainFrame:IsShown() and addon.RefreshTeleportUI then
+        addon.RefreshTeleportUI(DungeonTeleportsDB.selectedExpansion or DungeonTeleportsDB.defaultExpansion or addon.constants.orderedExpansions[1])
+      end
+    end)
+    return
+  end
+
+  local selectedExpansion = DungeonTeleportsDB.selectedExpansion or DungeonTeleportsDB.defaultExpansion or addon.constants.orderedExpansions[1]
+  addon.RefreshTeleportUI(selectedExpansion)
 end
 
 local widgets = {}
@@ -253,7 +270,10 @@ local function RegisterSettingsCategory()
     if widgets.keystoneModuleCheckbox then widgets.keystoneModuleCheckbox:SetChecked(db.keystoneModuleEnabled ~= false) end
     if widgets.closeOnTeleportCheckbox then widgets.closeOnTeleportCheckbox:SetChecked(db.closeOnTeleport == true) end
     if widgets.scaleSlider then widgets.scaleSlider:SetValue(db.uiScale or 1.0) end
-    if widgets.expansionDropdown then UIDropDownMenu_SetText(widgets.expansionDropdown, L[db.defaultExpansion or L["Current Season"]] or db.defaultExpansion or L["Current Season"]) end
+    -- db.defaultExpansion is a stable key (e.g. "Wotlk"); look it up via L[] for
+    -- display, falling back to the "Current Season" key rather than its already-
+    -- translated text (a second L[] lookup on translated text would never match).
+    if widgets.expansionDropdown then UIDropDownMenu_SetText(widgets.expansionDropdown, L[db.defaultExpansion or "Current Season"] or db.defaultExpansion or L["Current Season"]) end
     AnalyticsEvent("config_visibility", { visible = true, source = "blizzard_settings" })
   end
 

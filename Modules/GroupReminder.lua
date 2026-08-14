@@ -51,10 +51,10 @@ local function DT_GR_IsSpellKnown(spellID)
   if C_Spell and C_Spell.IsSpellKnown then
     return C_Spell.IsSpellKnown(spellID)
   end
-  if C_SpellBook.IsSpellKnown then
+  if C_SpellBook and C_SpellBook.IsSpellKnown then
     return C_SpellBook.IsSpellKnown(spellID)
   end
-  if C_SpellBook.IsSpellInSpellBook then
+  if C_SpellBook and C_SpellBook.IsSpellInSpellBook then
     return C_SpellBook.IsSpellInSpellBook(spellID)
   end
   return false
@@ -363,12 +363,38 @@ local function EnsurePopup()
   return f
 end
 
+local DT_GR_pendingPopupData
+local DT_GR_popupWaiter
+
 function addon:DT_GR_ShowPopup(data)
   if not data then return end
   EnsureDefaults()
   _G.DungeonTeleports_GroupReminder = addon
   local db = DungeonTeleportsDB.groupReminder
   if not db.enabled or not db.showPopup then return end
+
+  if InCombatLockdown and InCombatLockdown() then
+    -- The popup's teleport button is a SecureActionButtonTemplate; creating it
+    -- (first show) or changing its spell attribute (every show after that) is
+    -- disallowed during combat lockdown. A group-finder application can be
+    -- accepted mid-fight, so defer showing the popup until combat ends instead
+    -- of erroring.
+    DT_GR_pendingPopupData = data
+    if not DT_GR_popupWaiter then
+      DT_GR_popupWaiter = CreateFrame("Frame")
+      DT_GR_popupWaiter:RegisterEvent("PLAYER_REGEN_ENABLED")
+      DT_GR_popupWaiter:SetScript("OnEvent", function(self)
+        self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+        DT_GR_popupWaiter = nil
+        local pending = DT_GR_pendingPopupData
+        DT_GR_pendingPopupData = nil
+        if pending then
+          addon:DT_GR_ShowPopup(pending)
+        end
+      end)
+    end
+    return
+  end
 
   local f = EnsurePopup()
   f.Title:SetText(HeaderLabel())

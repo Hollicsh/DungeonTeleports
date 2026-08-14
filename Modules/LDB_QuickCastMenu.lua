@@ -343,11 +343,10 @@ local function ApplyMenuStyle()
     end
   end
 
-  if divider then
-    divider:ClearAllPoints()
-    divider:SetPoint("TOPLEFT", menu, "TOPLEFT", 204, -66)
-    divider:SetPoint("BOTTOMLEFT", menu, "BOTTOMLEFT", 204, 14)
-  end
+  -- NOTE: a "divider" separator between the expansion list and teleport grid was
+  -- referenced here but never created anywhere in this module, so this block was
+  -- always dead code (an undeclared global read as nil). Removed rather than
+  -- reintroducing an unused texture; revisit if a real divider element is added.
 end
 
 local function GetConstants()
@@ -454,7 +453,10 @@ local function RefreshTeleportsForExpansion(expansion)
   for _, mapID in ipairs(mapIDs) do
     local spellID = constants.mapIDtoSpellID and constants.mapIDtoSpellID[mapID] or nil
     if spellID then
-      local known = C_SpellBook.IsSpellInSpellBook(spellID) or C_SpellBook.IsSpellKnown(spellID)
+      local known = C_SpellBook and (
+        (C_SpellBook.IsSpellInSpellBook and C_SpellBook.IsSpellInSpellBook(spellID)) or
+        (C_SpellBook.IsSpellKnown and C_SpellBook.IsSpellKnown(spellID))
+      )
       if known then
         shown = shown + 1
         local b = EnsureTeleportButton(shown)
@@ -463,7 +465,9 @@ local function RefreshTeleportsForExpansion(expansion)
         local idx = shown - 1
         local col = idx % columns
         local row = math.floor(idx / columns)
-        local x = col * (colWidth + (colGap or 0))
+        -- colWidth already spans the full per-column width with no gap reserved
+        -- between columns (see colWidth above), so columns are simply adjacent.
+        local x = col * colWidth
         local y = -row * rowStep
         b:SetPoint("TOPLEFT", tpContent, "TOPLEFT", x, y)
         b:Show()
@@ -582,7 +586,7 @@ RefreshExpansionList = function()
     local b = EnsureExpansionButton(i)
     b:ClearAllPoints()
     b:SetPoint("TOPLEFT", expContent, "TOPLEFT", 0, y)
-    b.text:SetText(exp)
+    b.text:SetText(L[exp] or exp)
     b._expansion = exp
     if selectedExpansion == exp then b.bg:Show() else b.bg:Hide() end
     b:Show()

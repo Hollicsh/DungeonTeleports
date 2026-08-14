@@ -13,28 +13,34 @@ end
 
 local function ToggleDungeonTeleportsFrame(source)
   if not DungeonTeleportsMainFrame then
-    print(L["NOT_INITIALIZED_MAIN"]) 
+    print(L["NOT_INITIALIZED_MAIN"])
     return
   end
 
+  -- Open/close both go through addon.OpenTeleportWindow/CloseTeleportWindow
+  -- (DungeonTeleports.lua) so combat lockdown and Mythic+ suppression are
+  -- handled in exactly one place. Opening rebuilds secure teleport buttons,
+  -- which WoW disallows during combat, so this must never call
+  -- DungeonTeleportsMainFrame:Show() directly.
   if DungeonTeleportsMainFrame:IsShown() then
-    DungeonTeleportsMainFrame:Hide()
-    DungeonTeleportsDB.isVisible = false
-    AnalyticsEvent("ui_visibility", { visible = false, source = source or "minimap" })
-  else
-      if addon and addon._DT_mplus_suppressed then
-    if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
-      DEFAULT_CHAT_FRAME:AddMessage("|cffff7f00DungeonTeleports: Disabled during Mythic+ run (re-enables after you leave the dungeon).|r")
+    if addon and type(addon.CloseTeleportWindow) == "function" then
+      addon.CloseTeleportWindow(source or "minimap")
     else
-      print("DungeonTeleports: Disabled during Mythic+ run.")
+      DungeonTeleportsMainFrame:Hide()
+      DungeonTeleportsDB.isVisible = false
     end
     return
   end
 
-  DungeonTeleportsMainFrame:Show()
-    DungeonTeleportsDB.isVisible = true
-    AnalyticsEvent("ui_visibility", { visible = true, source = source or "minimap" })
+  if addon and type(addon.OpenTeleportWindow) == "function" then
+    addon.OpenTeleportWindow(source or "minimap")
+    return
   end
+
+  -- Fallback for an unexpected load order; still respect combat lockdown.
+  if InCombatLockdown and InCombatLockdown() then return end
+  DungeonTeleportsMainFrame:Show()
+  DungeonTeleportsDB.isVisible = true
 end
 
 local function ToggleConfigFrame(source)

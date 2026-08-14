@@ -47,26 +47,8 @@ local function DT_SafeHide(frame)
   frame:Hide()
 end
 
-local function DT_SafeShow(frame)
-  if InCombatLockdown and InCombatLockdown() then
-    frame._DT_pendingShow = true
-    frame:RegisterEvent("PLAYER_REGEN_ENABLED")
-    frame:HookScript("OnEvent", function(self, event)
-      if event == "PLAYER_REGEN_ENABLED" then
-        self:UnregisterEvent("PLAYER_REGEN_ENABLED")
-        if self._DT_pendingShow then
-          self._DT_pendingShow = nil
-          self:Show()
-        end
-      end
-    end)
-    if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
-      DEFAULT_CHAT_FRAME:AddMessage("|cffff7f00DungeonTeleports: Window will open after combat.|r")
-    end
-    return
-  end
-  frame:Show()
-end
+-- (Opening the window has its own combat-aware path — see addon.OpenTeleportWindow
+-- below — because it also needs to defer the secure-button rebuild, not just Show().)
 -- === End helpers ===
 -- === Mythic+ suppression guard (Midnight-safe) ===
 -- Midnight can return "secret" cooldown values during an active Challenge Mode run.
@@ -164,6 +146,16 @@ local L = addon.L
 
 addon.version = "Unknown"
 
+-- C_SpellBook is expected to exist on the Interface versions this addon targets, but
+-- guard it anyway (matches the same guard used in Modules/GroupReminder.lua) rather
+-- than indexing a possibly-nil table.
+local function DT_IsSpellKnown(spellID)
+  if not C_SpellBook then return false end
+  if C_SpellBook.IsSpellInSpellBook and C_SpellBook.IsSpellInSpellBook(spellID) then return true end
+  if C_SpellBook.IsSpellKnown and C_SpellBook.IsSpellKnown(spellID) then return true end
+  return false
+end
+
 -- Analytics helper (no-op if shim/client isn't present)
 local function AnalyticsEvent(name, data)
   local A = _G.DungeonTeleportsAnalytics
@@ -201,14 +193,69 @@ end
 if DungeonTeleportsDB.autoInsertKeystone == nil then DungeonTeleportsDB.autoInsertKeystone = false end
 if DungeonTeleportsDB.keystoneModuleEnabled == nil then DungeonTeleportsDB.keystoneModuleEnabled = true end
 
+-- === Migrate pre-2.1.10 saved expansion selection ===
+-- Older versions stored the *translated display text* (e.g. "Zorn des Lichkönigs")
+-- as the expansion key instead of a stable identifier (e.g. "Wotlk"). That broke
+-- lookups whenever the client locale changed. Constants now key everything with
+-- stable strings, so remap any legacy saved value back to its stable key here,
+-- once, before anything else reads selectedExpansion/defaultExpansion.
+local function DT_MigrateExpansionKey(value)
+  if value == nil or value == "__KEYSTONES__" then return value end
+  if constants and constants.mapExpansionToMapID and constants.mapExpansionToMapID[value] then
+    return value -- already a valid stable key
+  end
+  if constants and constants.orderedExpansions and L then
+    -- Check every loaded locale's translated text, not just the client's current
+    -- locale: the value may have been saved while playing under a different
+    -- client language than the one active now. addon.L holds every locale's
+    -- table as a plain entry keyed by locale code (e.g. L["deDE"]) alongside its
+    -- __index proxy for the active locale, so this is a real (non-metatable)
+    -- iteration over each of those sub-tables.
+    for _, localeTable in pairs(L) do
+      if type(localeTable) == "table" then
+        for _, key in ipairs(constants.orderedExpansions) do
+          if localeTable[key] == value then
+            return key
+          end
+        end
+      end
+    end
+  end
+  return nil -- unrecognized; caller falls back to the default expansion
+end
+
+DungeonTeleportsDB.selectedExpansion = DT_MigrateExpansionKey(DungeonTeleportsDB.selectedExpansion)
+DungeonTeleportsDB.defaultExpansion = DT_MigrateExpansionKey(DungeonTeleportsDB.defaultExpansion)
+
 -- ================================
 -- Mythic+ Keystone helper (Retail + Midnight Beta)
 -- - Auto-slot the keystone when the receptacle window opens
 -- - Make the keystone window movable and persist its position
 -- ================================
+local DT_keystoneFrameSetupWaiter
+
 local function DT_SetupKeystoneFrame()
   local kf = _G.ChallengesKeystoneFrame
   if not kf then return end
+
+  -- ChallengesKeystoneFrame is a protected Blizzard frame: SetMovable/EnableMouse/
+  -- RegisterForDrag/SetClampedToScreen (one-time setup below) and ClearAllPoints/
+  -- SetPoint (position restore below) can all be blocked during combat lockdown.
+  -- This function runs on every PLAYER_ENTERING_WORLD (i.e. every zone transition/
+  -- loading screen) and on ADDON_LOADED for Blizzard_ChallengesUI, either of which
+  -- can happen while already in combat, so defer the whole thing instead of erroring.
+  if InCombatLockdown and InCombatLockdown() then
+    if not DT_keystoneFrameSetupWaiter then
+      DT_keystoneFrameSetupWaiter = CreateFrame("Frame")
+      DT_keystoneFrameSetupWaiter:RegisterEvent("PLAYER_REGEN_ENABLED")
+      DT_keystoneFrameSetupWaiter:SetScript("OnEvent", function(self)
+        self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+        DT_keystoneFrameSetupWaiter = nil
+        DT_SetupKeystoneFrame()
+      end)
+    end
+    return
+  end
 
   -- Make movable (only needs to be done once)
   if not kf._DT_movableApplied then
@@ -1420,9 +1467,6 @@ end
 
 CreateKeystoneButton()
 
-mainFrame:SetScript("OnShow", function()
-  AnalyticsEvent("ui_visibility", { visible = true })
-end)
 mainFrame:SetScript("OnHide", function()
   AnalyticsEvent("ui_visibility", { visible = false })
   if keystoneRefreshTicker and keystoneRefreshTicker.Cancel then keystoneRefreshTicker:Cancel() end
@@ -1513,7 +1557,7 @@ local function SetFactionSpecificSpells()
 end
 
 local function GetRowStatus(spellID)
-  if C_SpellBook.IsSpellInSpellBook(spellID) or C_SpellBook.IsSpellKnown(spellID) then
+  if DT_IsSpellKnown(spellID) then
     local info = C_Spell.GetSpellCooldown(spellID)
     local start = info and info.startTime or nil
     local dur = info and info.duration or nil
@@ -1526,7 +1570,32 @@ local function GetRowStatus(spellID)
   return L["TELEPORT_NOT_KNOWN"] or "Teleport not known!", nil, COLORS.textDim
 end
 
+local DT_pendingRefreshExpansion
+local DT_refreshWaiter
+
 function createTeleportButtons(selectedExpansion)
+  if InCombatLockdown and InCombatLockdown() then
+    -- Rebuilding the grid touches SecureActionButtonTemplate buttons (CreateFrame +
+    -- SetAttribute), which WoW disallows during combat lockdown. This is the single
+    -- chokepoint every refresh path funnels through (slash command, minimap,
+    -- expansion tabs, settings panel, keystone toggle, ...), so guard it here once
+    -- instead of at every caller: remember the most recent request and replay it
+    -- as soon as combat ends.
+    DT_pendingRefreshExpansion = selectedExpansion or DT_pendingRefreshExpansion
+    if not DT_refreshWaiter then
+      DT_refreshWaiter = CreateFrame("Frame")
+      DT_refreshWaiter:RegisterEvent("PLAYER_REGEN_ENABLED")
+      DT_refreshWaiter:SetScript("OnEvent", function(self)
+        self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+        DT_refreshWaiter = nil
+        local pending = DT_pendingRefreshExpansion
+        DT_pendingRefreshExpansion = nil
+        createTeleportButtons(pending)
+      end)
+    end
+    return
+  end
+
   EnsureExpansionButtons()
 
   selectedExpansion = selectedExpansion or DungeonTeleportsDB.defaultExpansion or constants.orderedExpansions[1]
@@ -1565,7 +1634,7 @@ function createTeleportButtons(selectedExpansion)
     local dungeonName = constants.mapIDtoDungeonName[mapID] or "Unknown Dungeon"
     if spellID and spellID > 0 then
       totalCount = totalCount + 1
-      local known = C_SpellBook.IsSpellInSpellBook(spellID) or C_SpellBook.IsSpellKnown(spellID)
+      local known = DT_IsSpellKnown(spellID)
       if known then knownCount = knownCount + 1 end
 
       local rowIndex = math.floor(index / 2)
@@ -1591,7 +1660,7 @@ function createTeleportButtons(selectedExpansion)
         row.clickButton:RegisterForClicks()
       end
       row.clickButton:SetScript("PreClick", function()
-        local isKnown = C_SpellBook.IsSpellInSpellBook(spellID) or C_SpellBook.IsSpellKnown(spellID) or false
+        local isKnown = DT_IsSpellKnown(spellID)
         AnalyticsEvent("teleport_click", { spellID = spellID, expansion = selectedExpansion, known = isKnown })
         if isKnown and DungeonTeleportsDB and DungeonTeleportsDB.closeOnTeleport and mainFrame and mainFrame:IsShown() then
           mainFrame:Hide()
@@ -1782,6 +1851,15 @@ end
 
 SetFactionSpecificSpells()
 
+-- Single source of truth for populating the window's content whenever it becomes
+-- shown, regardless of *how* it was shown (slash command/minimap via
+-- DT_OpenTeleportWindowNow, or the PLAYER_LOGIN visibility restore in
+-- MinimapButton.lua, which calls :Show() directly). Content refresh always goes
+-- through addon.RefreshTeleportUI -> createTeleportButtons, which has its own
+-- combat-lockdown guard, so routing every "show" through here also makes the
+-- login-restore path combat-safe for free.
+-- (Visibility analytics are fired by each caller individually with a `source`,
+-- not here, to avoid double-firing on every open.)
 mainFrame:SetScript("OnShow", function()
   local defaultExpansion = DungeonTeleportsDB.selectedExpansion or DungeonTeleportsDB.defaultExpansion or constants.orderedExpansions[1]
   if defaultExpansion == "__KEYSTONES__" and IsKeystoneModuleEnabled() then
@@ -1854,7 +1932,7 @@ DungeonTeleports:SetScript("OnEvent", function(_, event, prefix, msg, channel, s
   ImportAstralKeysCache()
   RequestLibKeystones(true)
   PruneStaleKeystoneCache()
-  DungeonTeleportsDB.defaultExpansion = DungeonTeleportsDB.defaultExpansion or L["Current Season"]
+  DungeonTeleportsDB.defaultExpansion = DungeonTeleportsDB.defaultExpansion or "Current Season"
   DungeonTeleportsDB.selectedExpansion = DungeonTeleportsDB.selectedExpansion or DungeonTeleportsDB.defaultExpansion
   DungeonTeleportsDB.uiScale = ClampScale(DungeonTeleportsDB.uiScale)
   if DungeonTeleportsDB.closeOnTeleport == nil then
@@ -1886,17 +1964,26 @@ castWatcher:SetScript("OnEvent", function(_, evt, unit, _, spellID)
   end
 end)
 
--- Slash command to toggle the frame
-SLASH_DUNGEONTELEPORTS1 = "/dungeonteleports"
-SLASH_DUNGEONTELEPORTS2 = "/dtp"
-SlashCmdList["DUNGEONTELEPORTS"] = function()
-  if DungeonTeleportsMainFrame:IsShown() then
-    DT_SafeHide(DungeonTeleportsMainFrame)
-    DungeonTeleportsDB.isVisible = false
-    AnalyticsEvent("ui_visibility", { visible = false })
-    return
-  end
+-- === Combat-safe window open/close (shared by slash command, minimap, addon compartment) ===
+-- Opening the window rebuilds the teleport button grid, which creates/updates
+-- SecureActionButtonTemplate buttons. WoW disallows creating or mutating secure
+-- frames during combat lockdown, so every trigger that can open the window must
+-- route through here rather than calling RefreshTeleportUI/Show directly -
+-- previously the slash command called RefreshTeleportUI *before* its combat
+-- check, and the minimap button skipped the combat check entirely.
+local function DT_OpenTeleportWindowNow(source)
+  -- Content is populated by mainFrame's OnShow handler (see below), which fires
+  -- synchronously and unconditionally from :Show(), so it doesn't need to be
+  -- duplicated here.
+  DungeonTeleportsMainFrame:Show()
+  DungeonTeleportsDB.isVisible = true
+  AnalyticsEvent("ui_visibility", { visible = true, source = source })
+end
 
+local DT_openWaiter
+local DT_pendingOpenSource
+
+function addon.OpenTeleportWindow(source)
   if addon._DT_mplus_suppressed then
     if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
       DEFAULT_CHAT_FRAME:AddMessage("|cffff7f00DungeonTeleports: Disabled during Mythic+ run (re-enables after you leave the dungeon).|r")
@@ -1904,13 +1991,45 @@ SlashCmdList["DUNGEONTELEPORTS"] = function()
     return
   end
 
-  local defaultExpansion = DungeonTeleportsDB.selectedExpansion or DungeonTeleportsDB.defaultExpansion or L["Current Season"]
-  if defaultExpansion == "__KEYSTONES__" and IsKeystoneModuleEnabled() then
-    addon.ShowKeystoneView()
-  else
-    addon.RefreshTeleportUI((defaultExpansion == "__KEYSTONES__" and (DungeonTeleportsDB.defaultExpansion or constants.orderedExpansions[1])) or defaultExpansion)
+  if InCombatLockdown and InCombatLockdown() then
+    if DEFAULT_CHAT_FRAME and DEFAULT_CHAT_FRAME.AddMessage then
+      DEFAULT_CHAT_FRAME:AddMessage("|cffff7f00DungeonTeleports: Window will open after combat.|r")
+    end
+    -- Coalesce repeated open attempts (e.g. mashing the minimap icon) into a
+    -- single deferred call, and replay through addon.OpenTeleportWindow itself
+    -- rather than DT_OpenTeleportWindowNow so suppression state gets re-checked
+    -- at the moment combat actually ends, not just at the moment it was queued.
+    DT_pendingOpenSource = source or DT_pendingOpenSource
+    if not DT_openWaiter then
+      DT_openWaiter = CreateFrame("Frame")
+      DT_openWaiter:RegisterEvent("PLAYER_REGEN_ENABLED")
+      DT_openWaiter:SetScript("OnEvent", function(self)
+        self:UnregisterEvent("PLAYER_REGEN_ENABLED")
+        DT_openWaiter = nil
+        local pendingSource = DT_pendingOpenSource
+        DT_pendingOpenSource = nil
+        addon.OpenTeleportWindow(pendingSource)
+      end)
+    end
+    return
   end
-  DT_SafeShow(DungeonTeleportsMainFrame)
-  DungeonTeleportsDB.isVisible = true
-  AnalyticsEvent("ui_visibility", { visible = true })
+
+  DT_OpenTeleportWindowNow(source)
+end
+
+function addon.CloseTeleportWindow(source)
+  DT_SafeHide(DungeonTeleportsMainFrame)
+  DungeonTeleportsDB.isVisible = false
+  AnalyticsEvent("ui_visibility", { visible = false, source = source })
+end
+
+-- Slash command to toggle the frame
+SLASH_DUNGEONTELEPORTS1 = "/dungeonteleports"
+SLASH_DUNGEONTELEPORTS2 = "/dtp"
+SlashCmdList["DUNGEONTELEPORTS"] = function()
+  if DungeonTeleportsMainFrame:IsShown() then
+    addon.CloseTeleportWindow("slash_command")
+  else
+    addon.OpenTeleportWindow("slash_command")
+  end
 end
